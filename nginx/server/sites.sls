@@ -4,6 +4,14 @@
 
 {%- for site_name, site in server.get('site', {}).items() %}
 {%- if site.get('enabled') %}
+{{ server.log_dir }}/{{ site.name }}:
+  file.directory:
+  - mode: 0755
+  - user: root
+  - group: root
+  - makedirs: true
+  - require:
+    - pkg: nginx_packages
 
 {%- if site.get('ssl', {'enabled': False}).enabled %}
 {%- if site.ssl.get('dhparam', {'enabled': False}).enabled %}
@@ -114,12 +122,14 @@ nginx_generate_{{ site_name }}_ticket_key:
 {%- set old_chain_file = salt['cmd.shell']('cat {0}'.format(chain_file)) %}
 {%- set new_chain_file = salt['cmd.shell']('cat {0} {1}'.format(cert_file, ca_file)) %}
 
+{%- if site.ssl.engine != "letsencrypt" %}
 nginx_init_{{ site.host.name }}_tls:
   cmd.run:
   - name: "cat {{ cert_file }} {{ ca_file }} > {{ chain_file }}"
   - onlyif: {% if old_chain_file != new_chain_file %}/bin/true{% else %}/bin/false{% endif %}
   - watch_in:
     - service: nginx_service
+{% endif %}
 
 
 {% endif %}
@@ -127,13 +137,13 @@ nginx_init_{{ site.host.name }}_tls:
 sites-available-{{ site_name }}:
   file.managed:
   - name: {{ server.vhost_dir }}/{{ site.type }}_{{ site.name }}.conf
-  {%- if site.type == 'nginx_proxy' %}
+  {%- if site.type == 'proxy' %}
   - source: salt://nginx/files/proxy.conf
-  {%- elif site.type == 'nginx_redirect' %}
+  {%- elif site.type == 'redirect' %}
   - source: salt://nginx/files/redirect.conf
-  {%- elif site.type == 'nginx_static' %}
+  {%- elif site.type == 'static' %}
   - source: salt://nginx/files/static.conf
-  {%- elif site.type == 'nginx_stats' %}
+  {%- elif site.type == 'stats' %}
   - source: salt://nginx/files/stats.conf
   {%- else %}
   - source: salt://{{ site.type }}/files/nginx.conf
