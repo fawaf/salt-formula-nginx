@@ -160,4 +160,23 @@ systemctl_reload:
 
 {%- endif %}
 
+{%- if server.php is defined %}
+  {%- if server.php.get("enabled", False) %}
+
+php_packages:
+  pkg.installed:
+  - name: php-fpm
+
+{%- if grains.os_family == "Debian" %}
+/etc/nginx/conf.d/php-fpm.conf:
+  file.managed:
+  - source: salt://nginx/files/php-fpm.conf
+  - template: jinja
+  - require:
+    - file: /etc/nginx/nginx.conf
+{%- endif %}
+
+  {%- endif %}
+{%- endif %}
+
 {%- endif %}
